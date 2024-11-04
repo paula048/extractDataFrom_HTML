@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>V7 fetch HTML</title>
+</head>
+<body>
+    <h1>HTML V7 testing </h1>
+    <button id="fetchHtmlButton">Fetch HTML</button>
+    <!-- <button id="findBtn">Find Products</button> -->
+    <button id="goNextProduct">Show Next Product</button>
+    <textarea id="textareaPaste" style="height: 150px; width: 300px;"></textarea>
+    <button id="FindCosmetics">Find Similar Cosmetics</button>
+    <div id="productNumber" style="background-color: burlywood; font-size: 50px;">page: NONE</div>
+    <div id="ingredients" style="background-color: rgb(255, 162, 40);">lalalalal</div>
+    <div id="igredList" style="background-color: rgb(255, 40, 148);">Ingredients List; id="igredList"</div>
+    <div id="finder" style="background-color: lime;"></div>
+    <pre id="htmlContent"></pre>
+    <div id="pageResult" style="background-color: burlywood;"></div>
+    <script>
+
+
+
+
+
+        var HTML_TEXT = "";
+        var CURRENT_PRODUCT_INDEX = 0;
+        var PAGE_SIZE = 0;
+
+
+
+        document.getElementById('fetchHtmlButton').addEventListener('click', () => {
+            loadPage_productList(2).then(htmlText => {
+                extractProductsFromHTML(htmlText);
+                fetchData_productLink();
+            });
+        });
+
+
+        function loadPage_productList(page) {
+            return fetch(`http://localhost:3000/fetch-html?page=${page}`)
+                .then(response => response.text())
+                .then(html => {
+                    HTML_TEXT = html;
+                    return HTML_TEXT; // Ensure the promise resolves with the HTML text
+                })
+                .catch(error => {
+                    console.error('Error fetching HTML:', error);
+                });
+        }
+
+
+        const products = [];
+
+
+
+
+
+        function extractProductsFromHTML(htmlV2) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(htmlV2, 'text/html');
+            doc.querySelectorAll('.DescriptionSection-module_descriptionSection--YbLmv').forEach(div1 => {
+                const name_ = div1.querySelector('.DescriptionSection-module_brandNameSmall--Y6A0o');
+                const link_ = div1.querySelector('a');
+                if (name_ && link_) {
+                    const relativePath = link_.getAttribute('href');
+                    const cosmetic = new Cosmetic(name_.textContent, relativePath);
+                    products.push(cosmetic);
+                }
+            });
+            writeList(products);
+        }
+
+
+
+        
+        async function fetchData_productLink() {
+            const start = 0;
+            const end = products.length;
+
+            for (let i = start; i < end; i++) {
+                const cosmetic = products[i];
+                const url = `https://www.rossmann.pl${cosmetic.link}`;
+                console.log(`TEST | nr: ${i}  nazwa: ${cosmetic.name}`);
+                
+                try {
+                    const response = await fetch(`http://localhost:3000/fetch-html?url=${encodeURIComponent(url)}`);
+                    const html = await response.text();
+                    getProductDescription(html, i);
+                } catch (error) {
+                    console.error('Error fetching product page:', error);
+                }
+            }
+        }
+
+
+        
+        var listaSkladnikow = [];
+
+        function getProductDescription(html, index = CURRENT_PRODUCT_INDEX) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            doc.querySelectorAll('.styles-module_productDescriptionItem--GvY1O').forEach(span => {
+                const key = span.querySelector('button span');
+                if (key && key.textContent == "Składniki") {
+                    var test = goDownP(span);
+                    // document.getElementById('ingredients').innerText = test;
+                    clearListaSkladnikow();
+                    const shared = extraxtIngredients(test);
+                    setListaSkladnikow(shared);
+                    IgredientsCategory(listaSkladnikow);
+                    products[index].addIngredients(listaSkladnikow);
+                    // showIngredientsList(listaSkladnikow);
+                }
+            });
+        }
+
+
+
+
+
+        document.getElementById('goNextProduct').addEventListener('click', () => {
+            showNextProduct();
+        });
+
+
+        function showNextProduct(){
+
+            if(CURRENT_PRODUCT_INDEX<products.length){
+                showIngredientsList(products[CURRENT_PRODUCT_INDEX].ingredients);
+                writeProductNumber();
+                CURRENT_PRODUCT_INDEX++;
+            }
+            else{
+                console.log("No more products")
+            }
+            
+            // document.getElementById('pageResult').innerText = html;
+
+        }
+
+
+
+        var areaFindProducts;
+
+        document.getElementById('FindCosmetics').addEventListener('click', () => {
+            const textArea = document.getElementById('textareaPaste').value;
+            var myValue = extraxtIngredients(textArea);
+            areaFindProducts = myValue;
+            let finalV = findMostCommonIngredients(products, myValue);
+            console.log("Which is the most common")
+            WriteConsole_List(finalV.bestMatches);
+            WriteConsole_ObjectsList_tmp("Res v2: ",finalV.bestMatches);
+            console.log("Brst MATCH: "+finalV.maxMatchCount+"    next: "+ finalV.bestMatches[0].name);
+
+        });
+
+
+        
+        function WriteConsole_ObjectsList_tmp(title="", lista){
+
+            console.log("\n"+title)
+            for(let i = 0; i<lista.length; i++){
+                console.log(i + ")\t" + lista[i].name);
+            }
+        }
+
+
+
+
+
+        function findMostCommonIngredients(products, myIngredients) {
+            let maxMatchCount = 0;
+            let bestMatches = [];
+
+            products.forEach(product => {
+                let matchCount = 0;
+
+                product.ingredients.forEach(ingredient => {
+                    if (myIngredients.includes(ingredient.name)) {
+                        matchCount++;
+                    }
+                });
+
+                if (matchCount > maxMatchCount) {
+                    maxMatchCount = matchCount;
+                    bestMatches = [product];
+                } else if (matchCount === maxMatchCount) {
+                    bestMatches.push(product);
+                }
+            });
+
+            return {
+                maxMatchCount: maxMatchCount,
+                bestMatches: bestMatches
+            };
+        }
+
+
+
+
+        function WriteConsole_List(lista){
+
+            lista.forEach((element, index) => {
+                console.log(index +"\t " + element);
+            })
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        function extraxtIngredients(text) {
+            if (text && typeof text === 'string') {
+                return text.split(", ");
+            }
+            return [];
+        }
+
+        function setListaSkladnikow(list) {
+            list.forEach(element => {
+                const skladnik = new Ingredient(element);
+                listaSkladnikow.push(skladnik);
+            });
+        }
+
+        function IgredientsCategory(list) {
+            list.forEach((element) => {
+                const words = element.name.split(" ");
+                words.forEach(word => {
+                    var txt = word.toUpperCase();
+                    if (txt === "OIL") {
+                        element.addCategory("OIL");
+                    }
+                });
+            });
+        }
+
+        function writeConsole_SkladnikiClass(text) {
+            text.forEach(txt => {
+                console.log(`${txt.name} category: ${txt.categories.join(', ')}`);
+            });
+        }
+
+        function clearListaSkladnikow() {
+            listaSkladnikow = [];
+        }
+
+        function showIngredientsList(text) {
+            var tmp = "";
+            text.forEach(ingredient => {
+                tmp += "\n" + ingredient.name;
+                if (ingredient.categories.length > 0) {
+                    tmp += "\t |\tCategory: " + ingredient.categories.join(', ');
+                }
+            });
+            document.getElementById('igredList').innerText = tmp;
+        }
+
+        function goDownP(html) {
+            var txt = "";
+            html.querySelectorAll('p').forEach(value => {
+                if (!(value.querySelector('style'))) {
+                    txt += value.textContent;
+                }
+                txt += goDownP(value); // Append nested text content
+            });
+            return txt;
+        }
+
+        function writeProductNumber() {
+            document.getElementById('productNumber').innerText = "product number: " + CURRENT_PRODUCT_INDEX;
+        }
+
+        function writeList(params) {
+            for (let i = 0; i < params.length; i++) {
+                console.log(i + ")\tcosmetics  name: " + params[i].name + " | link: " + params[i].link + " | Category: " + params[i].ingredients);
+            }
+        }
+
+        class Cosmetic {
+            constructor(name, link) {
+                this.name = name;
+                this.link = link;
+                this.ingredients = [];
+            }
+            addIngredients(ingredients) {
+                this.ingredients = ingredients;
+            }
+        }
+
+        class Ingredient {
+            constructor(name) {
+                this.name = name;
+                this.categories = [];
+            }
+            addCategory(category) {
+                this.categories.push(category);
+            }
+        }
+    </script>
+</body>
+</html>
