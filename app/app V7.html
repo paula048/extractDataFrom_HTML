@@ -8,9 +8,11 @@
     <button id="fetchHtmlButton">Fetch HTML</button>
     <!-- <button id="findBtn">Find Products</button> -->
     <button id="goNextProduct">Show Next Product</button>
+    <button id="goNextPage">GO Next Page</button>
     <textarea id="textareaPaste" style="height: 150px; width: 300px;"></textarea>
     <button id="FindCosmetics">Find Similar Cosmetics</button>
-    <div id="productNumber" style="background-color: burlywood; font-size: 50px;">page: NONE</div>
+    <div id="productNumber" style="background-color: burlywood; font-size: 50px;">product: NONE</div>
+    <div id="pageNumber" style="background-color: rgb(135, 222, 174); font-size: 50px;">page: NONE</div>
     <div id="ingredients" style="background-color: rgb(255, 162, 40);">lalalalal</div>
     <div id="igredList" style="background-color: rgb(255, 40, 148);">Ingredients List; id="igredList"</div>
     <div id="finder" style="background-color: lime;"></div>
@@ -24,12 +26,39 @@
 
         var HTML_TEXT = "";
         var CURRENT_PRODUCT_INDEX = 0;
-        var PAGE_SIZE = 0;
+        var PAGE_NUMBER = 1;
+
+
+
+
+        document.getElementById('goNextPage').addEventListener('click', () => {
+            update_pageNumber();
+            load_nextPage();
+            
+        });
+
+        function load_nextPage(){
+            // catch error
+            PAGE_NUMBER++;
+            update_pageNumber();
+            var size_Last = products.length;
+            loadPage_productList(PAGE_NUMBER).then(htmlText => {
+                extractProductsFromHTML(htmlText);
+                fetchData_productLink(size_Last, products.length);
+            });
+        }
+
+
+
+        function update_pageNumber(){
+            document.getElementById('pageNumber').innerText = ("Page nr: "+PAGE_NUMBER);
+        }
+
 
 
 
         document.getElementById('fetchHtmlButton').addEventListener('click', () => {
-            loadPage_productList(2).then(htmlText => {
+            loadPage_productList(PAGE_NUMBER).then(htmlText => {
                 extractProductsFromHTML(htmlText);
                 fetchData_productLink();
             });
@@ -73,9 +102,8 @@
 
 
         
-        async function fetchData_productLink() {
-            const start = 0;
-            const end = products.length;
+        async function fetchData_productLink(start = 0, end = products.length) {
+
 
             for (let i = start; i < end; i++) {
                 const cosmetic = products[i];
@@ -120,6 +148,7 @@
 
         document.getElementById('goNextProduct').addEventListener('click', () => {
             showNextProduct();
+            update_pageNumber();
         });
 
 
