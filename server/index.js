@@ -13,6 +13,10 @@ app.get('/', (req, res) => {
 
 app.get('/fetch-html', async (req, res) => {
   let url = req.query.url || 'https://www.rossmann.pl/kategoria/pielegnacja-i-higiena/twarz/pielegnacja-twarzy/kremy-do-twarzy,13049';
+  // let url = req.query.url || 'https://www.hebe.pl/pielegnacja-twarzy-kremy-do-twarzy-2/';
+  // let url = req.query.url || 'https://www.notino.pl/kosmetyka/kosmetyki-do-twarzy/kremy-do-twarzy/?f=2-1-2-3645-8170-3663';
+
+  
 
 
   console.log(`Req Page ${req.query.page}`)

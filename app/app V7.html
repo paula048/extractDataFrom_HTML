@@ -9,11 +9,21 @@
     <!-- <button id="findBtn">Find Products</button> -->
     <button id="goNextProduct">Show Next Product</button>
     <button id="goNextPage">GO Next Page</button>
-    <textarea id="textareaPaste" style="height: 150px; width: 300px;"></textarea>
-    <button id="FindCosmetics">Find Similar Cosmetics</button>
+    
     <div id="productNumber" style="background-color: burlywood; font-size: 50px;">product: NONE</div>
     <div id="pageNumber" style="background-color: rgb(135, 222, 174); font-size: 50px;">page: NONE</div>
-    <div id="ingredients" style="background-color: rgb(255, 162, 40);">lalalalal</div>
+
+    <div style="background-color: rgb(165, 219, 255); padding: 50px;">
+        <h1>Find the most similar Products by Ingredients</h1>
+        <h3>Copy here ingredients List</h3>
+        <textarea id="textareaPaste" style="height: 150px; width: 300px;"></textarea>
+        <div id="testSelected" style="background-color: lime;"></div>
+        <button id="FindCosmetics">Find Similar Cosmetics</button>
+        <div id="ingredients" style="background-color: rgb(71, 177, 219);"></div>
+        <button id="similarProdBack">Go back</button>
+        <button id="similarProdNext">Go next</button>
+    </div>
+
     <div id="igredList" style="background-color: rgb(255, 40, 148);">Ingredients List; id="igredList"</div>
     <div id="finder" style="background-color: lime;"></div>
     <pre id="htmlContent"></pre>
@@ -27,6 +37,8 @@
         var HTML_TEXT = "";
         var CURRENT_PRODUCT_INDEX = 0;
         var PAGE_NUMBER = 1;
+        var VIEW_NUMBER_SIMILAR_PROD = null;
+        var FLAG_SIMILAR_PROD = false;
 
 
 
@@ -47,8 +59,6 @@
                 fetchData_productLink(size_Last, products.length);
             });
         }
-
-
 
         function update_pageNumber(){
             document.getElementById('pageNumber').innerText = ("Page nr: "+PAGE_NUMBER);
@@ -80,10 +90,6 @@
 
         const products = [];
 
-
-
-
-
         function extractProductsFromHTML(htmlV2) {
             var parser = new DOMParser();
             var doc = parser.parseFromString(htmlV2, 'text/html');
@@ -98,8 +104,6 @@
             });
             writeList(products);
         }
-
-
 
         
         async function fetchData_productLink(start = 0, end = products.length) {
@@ -164,67 +168,162 @@
             }
             
             // document.getElementById('pageResult').innerText = html;
-
         }
-
 
 
         var areaFindProducts;
 
+        var TAB_similar_products = [];
+        var TAB_theSameIngredients = [];
+        
+
         document.getElementById('FindCosmetics').addEventListener('click', () => {
-            const textArea = document.getElementById('textareaPaste').value;
-            var myValue = extraxtIngredients(textArea);
+            const textArea = document.getElementById('textareaPaste').value.trim();
+            // textArea automatically set dot at the end   -------->  REMOVE Dot
+            const textArea_value = textArea.endsWith('.') ? textArea.slice(0, -1) : textArea; 
+
+
+            var myValue = extraxtIngredients(textArea_value);
             areaFindProducts = myValue;
             let finalV = findMostCommonIngredients(products, myValue);
             console.log("Which is the most common")
-            WriteConsole_List(finalV.bestMatches);
-            WriteConsole_ObjectsList_tmp("Res v2: ",finalV.bestMatches);
-            console.log("Brst MATCH: "+finalV.maxMatchCount+"    next: "+ finalV.bestMatches[0].name);
+            // WriteConsole_List(finalV.bestMatches);
+            TAB_similar_products = finalV.sortedList;
+            TAB_theSameIngredients = finalV.ingredientsList;
+            WriteConsole_ObjectsList_tmp("Best matches list: ",finalV.sortedList, finalV.matchValueTab);
+            VIEW_NUMBER_SIMILAR_PROD = 0;
+            visualize_TheSameIngredients();  
+            show_similarProducts_V2();
 
         });
 
 
+        document.getElementById('similarProdNext').addEventListener('click', () => {
+            if(VIEW_NUMBER_SIMILAR_PROD < TAB_similar_products.length-1){
+                VIEW_NUMBER_SIMILAR_PROD++;
+                show_similarProducts_V2();
+            }
+            else{
+                console.log("Error: There is No more results")
+            }
+        });
+
+
+        document.getElementById('similarProdBack').addEventListener('click', () => {
+
+            if(VIEW_NUMBER_SIMILAR_PROD>0){
+                VIEW_NUMBER_SIMILAR_PROD--;
+                show_similarProducts_V2();
+            }
+
+        });
+
+
+
         
-        function WriteConsole_ObjectsList_tmp(title="", lista){
+
+
+        function visualize_TheSameIngredients(maxSize=5){
+            
+            //slice
+            TAB_similar_products = TAB_similar_products.slice(0, maxSize);
+            TAB_theSameIngredients = TAB_theSameIngredients.slice(0, maxSize);
+
+        }
+
+
+        function show_similarProducts_V2(){
+            var NumberofIngredients = areaFindProducts.length;
+
+            var txt = "";
+            txt += "NAME:\t" + TAB_similar_products[VIEW_NUMBER_SIMILAR_PROD].name + "\n";
+            txt += "MATCH: " + TAB_theSameIngredients[VIEW_NUMBER_SIMILAR_PROD].length + "/" + NumberofIngredients + "\n";
+            txt += "The same INGREDIENTS:\t" + TAB_theSameIngredients[VIEW_NUMBER_SIMILAR_PROD];
+            
+            document.getElementById('ingredients').innerText = txt;
+
+        }
+
+
+        
+        function WriteConsole_ObjectsList_tmp(title="", lista, matchTab=[], max=5){
 
             console.log("\n"+title)
-            for(let i = 0; i<lista.length; i++){
-                console.log(i + ")\t" + lista[i].name);
+            for(let i = 0; i<lista.length && i<max; i++){
+                console.log(i + ")\t" + lista[i].name + "\t\t" + matchTab[i]);
             }
         }
 
 
+        
 
+        function findMostCommonIngredients(products_, myIngredients) {
+            var prod_size = products_.length;
+            var sortedList =[];
+            var matchValueTab = [];
+            var matchesIngredients = [];
+            
+            sortedList = products_;
+ 
 
+            for(var piv =0; piv<products_.length; piv++){
 
-        function findMostCommonIngredients(products, myIngredients) {
-            let maxMatchCount = 0;
-            let bestMatches = [];
+                var max_count = howManyMatch(sortedList[piv], myIngredients).matchCount;
+                var max_index = piv;
 
-            products.forEach(product => {
-                let matchCount = 0;
+                for(var i = piv+1; i<products_.length; i++){
 
-                product.ingredients.forEach(ingredient => {
-                    if (myIngredients.includes(ingredient.name)) {
-                        matchCount++;
-                    }
-                });
-
-                if (matchCount > maxMatchCount) {
-                    maxMatchCount = matchCount;
-                    bestMatches = [product];
-                } else if (matchCount === maxMatchCount) {
-                    bestMatches.push(product);
+                    let matchCount = howManyMatch(sortedList[i], myIngredients).matchCount;
+                    if(matchCount>max_count){
+                        max_index = i;
+                        max_count = matchCount;
+                    }       
                 }
-            });
+                if(piv !== max_index){
+                    var tmp = sortedList[piv];
+                    sortedList[piv] = sortedList[max_index];
+                    sortedList[max_index] = tmp;
+                }
+                matchesIngredients.push(howManyMatch(sortedList[piv], myIngredients).matchList);
+                matchValueTab.push(max_count);
+            }
+
+
 
             return {
-                maxMatchCount: maxMatchCount,
-                bestMatches: bestMatches
+                sortedList: sortedList,
+                matchValueTab: matchValueTab,
+                ingredientsList: matchesIngredients
+
             };
         }
 
 
+
+        function howManyMatch(tested, myIngredients) {
+
+
+            document.getElementById('testSelected').innerText = myIngredients;
+
+
+            var matchCount = 0;
+            var matchList = [];
+            console.log("TEST TESTED \n\n\nLista ingre: "+ tested.ingredients+"  \n this ingredients: " + myIngredients);
+            tested.ingredients.forEach((ingredient, index) => {
+                // console.log("----------------GOGOOOOOO  "+ingredient.name);
+                if (myIngredients.includes(ingredient.name)) {
+                    matchList.push(ingredient.name);
+                    matchCount++;
+                    console.log("----------------true  "+ingredient.name);
+                }
+                console.log("tested: "+ingredient.name+"\tUSER: "+myIngredients[index])
+            });  
+
+            return {matchCount: matchCount,
+                    matchList: matchList
+            };
+
+        }
 
 
         function WriteConsole_List(lista){
@@ -236,22 +335,18 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-        function extraxtIngredients(text) {
+        function extraxtIngredients(text) {   
+               
             if (text && typeof text === 'string') {
-                return text.split(", ");
+                text = text.trim();                                                 // remove space 'before' and 'after' string
+                const cleanTxt = text.endsWith('.') ? text.slice(0, -1) : text;     // remove 'dot' from end
+                return cleanTxt.split(", ");
             }
             return [];
         }
+
+
+
 
         function setListaSkladnikow(list) {
             list.forEach(element => {
