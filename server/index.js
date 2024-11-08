@@ -28,7 +28,6 @@ app.get('/fetch-html', async (req, res) => {
 
   try {
     const response = await axios.get(url);
-    console.log(url)
     res.send(response.data);
   } catch (error) {
     res.status(500).send('Error fetching HTML');

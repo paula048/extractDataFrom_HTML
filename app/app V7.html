@@ -8,7 +8,7 @@
     <button id="fetchHtmlButton">Fetch HTML</button>
     <!-- <button id="findBtn">Find Products</button> -->
     <button id="goNextProduct">Show Next Product</button>
-    <button id="goNextPage">GO Next Page</button>
+    <button id="goNextPage">Load Next Page</button>
     
     <div id="productNumber" style="background-color: burlywood; font-size: 50px;">product: NONE</div>
     <div id="pageNumber" style="background-color: rgb(135, 222, 174); font-size: 50px;">page: NONE</div>
@@ -28,17 +28,15 @@
     <div id="finder" style="background-color: lime;"></div>
     <pre id="htmlContent"></pre>
     <div id="pageResult" style="background-color: burlywood;"></div>
+
+
     <script>
-
-
-
 
 
         var HTML_TEXT = "";
         var CURRENT_PRODUCT_INDEX = 0;
         var PAGE_NUMBER = 1;
         var VIEW_NUMBER_SIMILAR_PROD = null;
-        var FLAG_SIMILAR_PROD = false;
 
 
 
@@ -55,7 +53,7 @@
             update_pageNumber();
             var size_Last = products.length;
             loadPage_productList(PAGE_NUMBER).then(htmlText => {
-                extractProductsFromHTML(htmlText);
+                extractProductsFromHTML_V2(htmlText);
                 fetchData_productLink(size_Last, products.length);
             });
         }
@@ -69,7 +67,8 @@
 
         document.getElementById('fetchHtmlButton').addEventListener('click', () => {
             loadPage_productList(PAGE_NUMBER).then(htmlText => {
-                extractProductsFromHTML(htmlText);
+
+                extractProductsFromHTML_V2(htmlText);
                 fetchData_productLink();
             });
         });
@@ -90,7 +89,33 @@
 
         const products = [];
 
-        function extractProductsFromHTML(htmlV2) {
+        function extractProductsFromHTML_V2(htmlV2) {   
+            
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(htmlV2, 'text/html');
+
+            var allDivs = doc.querySelectorAll('div'); 
+            allDivs.forEach(div => { 
+                if (div.className.includes('ProductTile-module_productTile--L+hAx')) { 
+                    const name_ = div.querySelector('.DescriptionSection-module_brandNameSmall--Y6A0o');
+                    const link_ = div.querySelector('a');
+                    const imgUrl_ = div.querySelector('img');
+
+                    if(name_ && link_ && imgUrl_){
+                        console.log("NAME: \t"+name_.textContent);
+                        const cosmetic = new Cosmetic(name_.textContent, link_.getAttribute('href'), imgUrl_.src);
+                        products.push(cosmetic);
+                    }
+
+                } 
+            });
+
+        }
+
+
+
+        function extractProductsFromHTML_V1(htmlV2) {   
+            
             var parser = new DOMParser();
             var doc = parser.parseFromString(htmlV2, 'text/html');
             doc.querySelectorAll('.DescriptionSection-module_descriptionSection--YbLmv').forEach(div1 => {
@@ -102,7 +127,44 @@
                     products.push(cosmetic);
                 }
             });
-            writeList(products);
+            // writeList(products);
+        }
+
+
+        var textTest = "";
+        function extractProductsFromTESTY(htmlV2) {  
+            console.log("^^^^^^^^^^^^^^^^^^^^:  START")   
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(htmlV2, 'text/html');
+            doc.querySelectorAll('.ProductTile-module_productTile--L+hAx').forEach(div1 => {
+                const name_ = div1.querySelector('.DescriptionSection-module_brandNameSmall--Y6A0o');
+                const link_ = div1.querySelector('a');
+                if (name_ && link_) {
+
+                    textTest+=name_.textContent + "\n --------------------------------";
+                }
+            });
+            // writeList(products);
+        }
+
+
+
+        var warka;
+         
+
+        function extractOnlyImageHTML(html){                // works
+
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            warka = doc;
+
+            doc.querySelectorAll('.ProductTile-module_imageSection--4dy3j').forEach(div1 => {
+                const img_ = div1.querySelector('img');
+                if (img_) {
+                    console.log("IMG: ///////////////////: "+img_.src)
+                }
+            });
+            
         }
 
         
@@ -118,6 +180,7 @@
                     const response = await fetch(`http://localhost:3000/fetch-html?url=${encodeURIComponent(url)}`);
                     const html = await response.text();
                     getProductDescription(html, i);
+                    // get Product Image
                 } catch (error) {
                     console.error('Error fetching product page:', error);
                 }
@@ -126,7 +189,7 @@
 
 
         
-        var listaSkladnikow = [];
+        var LISTA_SKLADNIKOW = [];
 
         function getProductDescription(html, index = CURRENT_PRODUCT_INDEX) {
             var parser = new DOMParser();
@@ -139,12 +202,22 @@
                     clearListaSkladnikow();
                     const shared = extraxtIngredients(test);
                     setListaSkladnikow(shared);
-                    IgredientsCategory(listaSkladnikow);
-                    products[index].addIngredients(listaSkladnikow);
-                    // showIngredientsList(listaSkladnikow);
+                    IgredientsCategory(LISTA_SKLADNIKOW);
+                    products[index].addIngredients(LISTA_SKLADNIKOW);
+                    // showIngredientsList(listaSkladnikow)     ------------ console TEST
                 }
             });
         }
+
+
+        function getImage(){
+
+        }
+
+
+
+
+         
 
 
 
@@ -192,7 +265,7 @@
             TAB_theSameIngredients = finalV.ingredientsList;
             WriteConsole_ObjectsList_tmp("Best matches list: ",finalV.sortedList, finalV.matchValueTab);
             VIEW_NUMBER_SIMILAR_PROD = 0;
-            visualize_TheSameIngredients();  
+            visualize_TheSameIngredients(10);  
             show_similarProducts_V2();
 
         });
@@ -236,12 +309,12 @@
             var NumberofIngredients = areaFindProducts.length;
 
             var txt = "";
-            txt += "NAME:\t" + TAB_similar_products[VIEW_NUMBER_SIMILAR_PROD].name + "\n";
-            txt += "MATCH: " + TAB_theSameIngredients[VIEW_NUMBER_SIMILAR_PROD].length + "/" + NumberofIngredients + "\n";
+            txt += "<img src=" + TAB_similar_products[VIEW_NUMBER_SIMILAR_PROD].imageUrl + " style='max-height: 200px;'/>" + "<br>";
+            txt += "NAME:\t" + TAB_similar_products[VIEW_NUMBER_SIMILAR_PROD].name + "<br>";
+            txt += "MATCH: " + TAB_theSameIngredients[VIEW_NUMBER_SIMILAR_PROD].length + "/" + NumberofIngredients + "<br>";
             txt += "The same INGREDIENTS:\t" + TAB_theSameIngredients[VIEW_NUMBER_SIMILAR_PROD];
             
-            document.getElementById('ingredients').innerText = txt;
-
+            document.getElementById('ingredients').innerHTML = txt;
         }
 
 
@@ -308,15 +381,12 @@
 
             var matchCount = 0;
             var matchList = [];
-            console.log("TEST TESTED \n\n\nLista ingre: "+ tested.ingredients+"  \n this ingredients: " + myIngredients);
             tested.ingredients.forEach((ingredient, index) => {
                 // console.log("----------------GOGOOOOOO  "+ingredient.name);
                 if (myIngredients.includes(ingredient.name)) {
                     matchList.push(ingredient.name);
                     matchCount++;
-                    console.log("----------------true  "+ingredient.name);
                 }
-                console.log("tested: "+ingredient.name+"\tUSER: "+myIngredients[index])
             });  
 
             return {matchCount: matchCount,
@@ -351,7 +421,7 @@
         function setListaSkladnikow(list) {
             list.forEach(element => {
                 const skladnik = new Ingredient(element);
-                listaSkladnikow.push(skladnik);
+                LISTA_SKLADNIKOW.push(skladnik);
             });
         }
 
@@ -374,7 +444,7 @@
         }
 
         function clearListaSkladnikow() {
-            listaSkladnikow = [];
+            LISTA_SKLADNIKOW = [];
         }
 
         function showIngredientsList(text) {
@@ -400,7 +470,7 @@
         }
 
         function writeProductNumber() {
-            document.getElementById('productNumber').innerText = "product number: " + CURRENT_PRODUCT_INDEX;
+            document.getElementById('productNumber').innerText = "product number: " + CURRENT_PRODUCT_INDEX+1;
         }
 
         function writeList(params) {
@@ -410,10 +480,11 @@
         }
 
         class Cosmetic {
-            constructor(name, link) {
+            constructor(name, link, imageUrl="") {
                 this.name = name;
                 this.link = link;
                 this.ingredients = [];
+                this.imageUrl = imageUrl;
             }
             addIngredients(ingredients) {
                 this.ingredients = ingredients;
